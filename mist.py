@@ -5,8 +5,15 @@ import re
 
 
 llm = Llama.from_pretrained(
-	repo_id="Qwen/Qwen1.5-7B-Chat-GGUF", filename="qwen1_5-7b-chat-q2_k.gguf",
+    repo_id="Qwen/Qwen1.5-7B-Chat-GGUF",
+    filename="qwen1_5-7b-chat-q2_k.gguf",
+    n_ctx=1024,           # Increase context size
+    n_threads=16,         # Utilize all available CPU cores (CPX51 has 16 vCPUs)
+    n_batch=512,          # Increase batch size for faster inference
+    use_mlock=True,       # Lock model into RAM
+    use_mmap=True,        # Enable memory-mapped file usage
 )
+
 
 
 # Tool definitions (Actions)
@@ -28,19 +35,28 @@ tools = {
 
 def generate_llm_action(state, ca, cb):
     prompt = f"""
+You are solving the water jug problem.
+
 Current state:
 - Jug A: {state[0]} liters
 - Jug B: {state[1]} liters
 Capacities: A={ca}, B={cb}
 Goal: Exactly 4 liters.
 
-Reply with ONLY ONE word from the following:
-fill_jug_A, fill_jug_B, empty_jug_A, empty_jug_B, transfer_A_to_B, transfer_B_to_A
-Do NOT explain or add extra text.
+Choose ONLY one action from the following:
+- fill_jug_A
+- fill_jug_B
+- empty_jug_A
+- empty_jug_B
+- transfer_A_to_B
+- transfer_B_to_A
+
+Return only the action name without explanation.
 """
 
-    while True:
-        response = llm(prompt, max_tokens=10, temperature=0.0)
+    max_retries = 5  # Limit retries to prevent infinite loops
+    for attempt in range(max_retries):
+        response = llm(prompt, max_tokens=5, temperature=0.1)
         text_response = response["choices"][0]["text"].strip()
 
         match = re.fullmatch(r"(fill_jug_A|fill_jug_B|empty_jug_A|empty_jug_B|transfer_A_to_B|transfer_B_to_A)", text_response)
@@ -48,6 +64,10 @@ Do NOT explain or add extra text.
             return match.group(1)
         else:
             print(f"Unexpected response '{text_response}', retrying...")
+
+    raise RuntimeError("LLM failed to produce a valid action after multiple attempts.")
+
+
 
 
 
