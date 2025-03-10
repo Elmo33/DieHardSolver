@@ -56,7 +56,7 @@ def execute_die_hard_tool(input_str: str):
 # Defining the LangChain Tool with explicit debugging
 die_hard_tool = {
     'name': 'DieHardSolver',
-    'func': solve_die_hard,
+    'func': execute_die_hard_tool,
     'description': 'Solve Die Hard problem given jug sizes and target'
 }
 
