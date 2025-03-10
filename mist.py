@@ -188,7 +188,6 @@ def main():
 
     while steps_taken < max_steps:
         response = agent.invoke(prompt)
-        print(response)
 
         if problem.state()[1] == 4:
             for index, action in enumerate(response["intermediate_steps"]):
