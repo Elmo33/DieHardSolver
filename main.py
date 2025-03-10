@@ -1,4 +1,4 @@
-from langchain.llms import Llama
+from langchain_community.llms import Llama
 from langchain.tools import Tool
 from langchain.agents import initialize_agent
 from langchain.agents import AgentType
