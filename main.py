@@ -49,10 +49,13 @@ def die_hard_solver(jug1: int, jug2: int, target: int):
     return "No solution found"
 
 # Create a properly formatted tool
-def solve_die_hard(input_str: str):
-    """Parses input string and calls die_hard_solver."""
+def solve_die_hard(input_dict: dict):
+    """Parses structured input and calls die_hard_solver."""
     try:
-        jug1, jug2, target = map(int, input_str.split())
+        print(f"DEBUG: Received input: {input_dict}")  # Debugging output
+        jug1 = int(input_dict.get("jug1"))
+        jug2 = int(input_dict.get("jug2"))
+        target = int(input_dict.get("target"))
         result = die_hard_solver(jug1, jug2, target)
         return f"Solution steps: {result}" if isinstance(result, list) else result
     except Exception as e:
@@ -61,7 +64,7 @@ def solve_die_hard(input_str: str):
 die_hard_tool = Tool(
     name="DieHardSolver",
     func=solve_die_hard,
-    description="Solves the Die Hard problem given two jug sizes and a target amount. Input format: '3 5 4'",
+    description="Solves the Die Hard problem given two jug sizes and a target amount. Input format: {'jug1': 3, 'jug2': 5, 'target': 4}",
 )
 
 # Initialize agent with memory
@@ -75,6 +78,6 @@ agent = initialize_agent(
     memory=memory,
 )
 
-# Example query
-response = agent.run("Solve the Die Hard problem with jugs 3 and 5 to get 4 liters.")
+# Example query using `invoke()` instead of `run()`
+response = agent.invoke("Solve the Die Hard problem with jugs 3 and 5 to get 4 liters.")
 print(response)
