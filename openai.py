@@ -3,7 +3,6 @@ from langchain.agents import initialize_agent, AgentType
 from langchain_community.llms import OpenAI
 import logging
 
-# Setup logging for debugging
 logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 logger = logging.getLogger("DieHardSolver")
 
@@ -46,19 +45,18 @@ tools = [
          description="Pour water from the 3-gallon jug to the 5-gallon jug.")
 ]
 
-# Use LangChain agent to control the sequence of steps
-llm = OpenAI(temperature=0)  # Replace with an actual LLM if needed
+llm = OpenAI(temperature=0)
 agent = initialize_agent(tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, verbose=True)
 
 
 def solve_die_hard():
     steps = [
         five_gallon.fill,
-        five_gallon.transfer_to,  # Transfer to three_gallon
+        five_gallon.transfer_to,
         three_gallon.empty,
-        five_gallon.transfer_to,  # Transfer remaining to three_gallon
+        five_gallon.transfer_to,
         five_gallon.fill,
-        five_gallon.transfer_to  # Transfer to three_gallon to get exactly 4 gallons in 5-gallon jug
+        five_gallon.transfer_to
     ]
 
     logger.debug("Starting Die Hard problem solution...")
