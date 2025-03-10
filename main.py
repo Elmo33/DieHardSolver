@@ -1,11 +1,11 @@
-from llama_cpp import Llama
+from langchain.llms import LlamaCpp
 from langchain.tools import Tool
 from langchain.agents import initialize_agent
 from langchain.agents import AgentType
 from langchain.memory import ConversationBufferMemory
 
 # Configure Qwen 7B optimized for CPX51 on Hetzner
-llm = Llama.from_pretrained(
+llm = LlamaCpp.from_pretrained(
     repo_id="Qwen/Qwen1.5-7B-Chat-GGUF",
     filename="qwen1_5-7b-chat-q2_k.gguf",
     n_ctx=1024,
