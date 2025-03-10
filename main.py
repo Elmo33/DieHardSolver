@@ -4,16 +4,19 @@ from langchain.agents import initialize_agent
 from langchain.agents import AgentType
 from langchain.memory import ConversationBufferMemory
 
-# Configure Qwen 7B optimized for CPX51 on Hetzner
+model_path = "/root/DieHardSolver/qwen1_5-7b-chat-q2_k.gguf"
+
+# Load the Llama model using LangChain's LlamaCpp wrapper
 llm = LlamaCpp(
-    repo_id="Qwen/Qwen1.5-7B-Chat-GGUF",
-    filename="qwen1_5-7b-chat-q2_k.gguf",
+    model_path=model_path,  # Provide the correct local GGUF model path
     n_ctx=1024,
-    n_threads=16,  # Utilize all CPU cores on CPX51
+    n_threads=16,  # Utilize all CPU cores
     n_batch=512,
     use_mlock=True,
     use_mmap=True,
+    verbose=True,
 )
+
 
 
 # Define the Die Hard water jug problem solver tool
