@@ -38,7 +38,6 @@ class DieHardProblem:
         assert 0 <= self.big <= 5, "Big jug out of bounds"
 
     def die_hard_problem_not_solved(self):
-        # This assertion is meant to be violated when the puzzle is solved (i.e. when big == 4)
         assert self.big != 4, f"Puzzle solved: big jug contains {self.big} gallons"
 
     def reset(self):
@@ -166,27 +165,23 @@ def main():
 
     prompt = """You are given a puzzle called the Die Hard water jug problem. You have two jugs: a 3-gallon jug (small) and a 5-gallon jug (big). The goal is to obtain exactly 4 gallons in the 5-gallon jug using the following tools:
 
-- fill_small_jug – Fills the small jug to its 3-gallon capacity.
-- fill_big_jug – Fills the big jug to its 5-gallon capacity.
-- empty_small_jug – Empties the small jug.
-- empty_big_jug – Empties the big jug.
-- pour_small_into_big_jug – Pours water from the small jug into the big jug until the big jug is full or the small jug is empty.
-- pour_big_into_small_jug – Pours water from the big jug into the small jug until the small jug is full or the big jug is empty.
-- get_state – Returns the current state of both jugs.
-- reset_problem – Resets both jugs to 0 gallons.
+    - fill_small_jug – Fills the small jug to its 3-gallon capacity.
+    - fill_big_jug – Fills the big jug to its 5-gallon capacity.
+    - empty_small_jug – Empties the small jug.
+    - empty_big_jug – Empties the big jug.
+    - pour_small_into_big_jug – Pours water from the small jug into the big jug until the big jug is full or the small jug is empty.
+    - pour_big_into_small_jug – Pours water from the big jug into the small jug until the small jug is full or the big jug is empty.
+    - get_state – Returns the current state of both jugs.
+    - reset_problem – Resets both jugs to 0 gallons.
+    
+    **Instructions:**
+    - Your goal is to fill the 5-gallon jug with exactly 4 gallons of water.
+    - You may use the tools in any order, but **your first step should always be to reset both jugs to 0 gallons** by using the reset_problem tool. You can only use this tool once at the beginning.
+    - Provide the sequence of operations needed to achieve the goal. Each operation must be clearly defined and must lead toward reaching exactly 4 gallons in the 5-gallon jug.
+    
+    Make sure to plan your steps carefully, and use the tools strategically to reach the goal in the fewest moves possible."
+    """
 
-**Instructions:**
-- Your goal is to fill the 5-gallon jug with exactly 4 gallons of water.
-- You may use the tools in any order, but **your first step should always be to reset both jugs to 0 gallons** by using the reset_problem tool. You can only use this tool once at the beginning.
-- Provide the sequence of operations needed to achieve the goal. Each operation must be clearly defined and must lead toward reaching exactly 4 gallons in the 5-gallon jug.
-
-Make sure to plan your steps carefully, and use the tools strategically to reach the goal in the fewest moves possible."
-"""
-
-    depth = "Keep in mind the depth, the depth is the number of steps to reach the goal. For now try to get exactly 4 gallons in the 5-gallon jug with depth of {a} max."
-    depth_value = depth.format(a=7)
-
-    prompt += depth_value
 
     max_steps = 30  # Limit the maximum number of iterations
     steps_taken = 0
