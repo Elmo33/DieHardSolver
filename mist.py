@@ -3,18 +3,16 @@ import json
 from main import WaterJugSolver
 import re
 
-
+# Load LLM with optimized settings for Hetzner CPX51
 llm = Llama.from_pretrained(
     repo_id="Qwen/Qwen1.5-7B-Chat-GGUF",
     filename="qwen1_5-7b-chat-q2_k.gguf",
-    n_ctx=1024,           # Increase context size
-    n_threads=16,         # Utilize all available CPU cores (CPX51 has 16 vCPUs)
-    n_batch=512,          # Increase batch size for faster inference
-    use_mlock=True,       # Lock model into RAM
-    use_mmap=True,        # Enable memory-mapped file usage
+    n_ctx=1024,
+    n_threads=16,  # Utilize all CPU cores
+    n_batch=512,
+    use_mlock=True,
+    use_mmap=True,
 )
-
-
 
 # Tool definitions (Actions)
 tools = {
@@ -30,9 +28,7 @@ tools = {
     ),
 }
 
-
-
-
+# Generate LLM action
 def generate_llm_action(state, ca, cb):
     prompt = f"""
 You are solving the water jug problem.
@@ -67,10 +63,7 @@ Return only the action name without explanation.
 
     raise RuntimeError("LLM failed to produce a valid action after multiple attempts.")
 
-
-
-
-
+# Solve water jug problem
 def solve_with_llm(ca, cb, target):
     solver = WaterJugSolver(ca, cb, target)
     state = (0, 0)
@@ -86,7 +79,6 @@ def solve_with_llm(ca, cb, target):
             return
 
     print("Could not achieve target within step limit.")
-
 
 # Run solver
 solve_with = lambda ca, cb, target: solve_with_llm(ca, cb, target)
