@@ -1,19 +1,18 @@
 from langchain_community.llms import LlamaCpp
-from langchain.tools import StructuredTool
+from langchain.tools import Tool
 from langchain.agents import initialize_agent, AgentType
 from langchain.memory import ConversationBufferMemory
 from collections import deque
-from typing import Dict
 
 # Define model path
 model_path = "/root/DieHardSolver/7B/qwen1_5-7b-chat-q2_k.gguf"
 
-# Load the Llama model
+# Load the Llama model (reduce batch size for Q2_K model)
 llm = LlamaCpp(
     model_path=model_path,
     n_ctx=1024,
     n_threads=16,
-    n_batch=512,
+    n_batch=256,  # Reduce batch size for lower precision models
     use_mlock=True,
     use_mmap=True,
     verbose=True,
@@ -49,18 +48,25 @@ def die_hard_solver(jug1: int, jug2: int, target: int):
 
     return "No solution found"
 
-# Properly structured tool function
-def solve_die_hard(jug1: int, jug2: int, target: int) -> str:
-    """Solves the Die Hard problem with structured inputs."""
-    print(f"DEBUG: Received input -> jug1: {jug1}, jug2: {jug2}, target: {target}")  # Debugging
-    result = die_hard_solver(jug1, jug2, target)
-    return f"Solution steps: {result}" if isinstance(result, list) else result
+# Properly formatted tool function
+def solve_die_hard(input_str: str) -> str:
+    """Parses string input and calls die_hard_solver."""
+    try:
+        print(f"DEBUG: Received input -> {input_str}")  # Debugging
+        numbers = list(map(int, input_str.split()))
+        if len(numbers) != 3:
+            return "Error: Please provide exactly three numbers (jug1, jug2, target)."
+        jug1, jug2, target = numbers
+        result = die_hard_solver(jug1, jug2, target)
+        return f"Solution steps: {result}" if isinstance(result, list) else result
+    except Exception as e:
+        return f"Error: {str(e)}"
 
-# Define a properly structured tool
-die_hard_tool = StructuredTool.from_function(
-    solve_die_hard,
+# Define the tool in a way that ZeroShotAgent supports (single input string)
+die_hard_tool = Tool(
     name="DieHardSolver",
-    description="Solves the Die Hard problem given two jug sizes and a target amount.",
+    func=solve_die_hard,
+    description="Solves the Die Hard problem given two jug sizes and a target amount. Input format: '3 5 4'",
 )
 
 # Initialize agent with memory
@@ -75,7 +81,7 @@ agent = initialize_agent(
     handle_parsing_errors=True,  # Avoid crashing due to format issues
 )
 
-# Run the agent using structured input
+# Run the agent using a proper input string
 response = agent.invoke(
     {
         "input": "Solve the Die Hard problem with jugs 3 and 5 to get 4 liters."
