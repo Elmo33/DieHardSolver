@@ -1,12 +1,10 @@
 from langchain_community.llms import LlamaCpp
 from langchain.agents import initialize_agent, AgentType
 from langchain.memory import ConversationBufferMemory
+from langchain.tools import Tool
 from collections import deque
 from typing import Tuple, List
-
 model_path = "/root/DieHardSolver/7B/qwen1_5-7b-chat-q2_k.gguf"
-
-# Load and initialize the Llama model
 llm = LlamaCpp(
     model_path=model_path,
     n_ctx=1024,
@@ -53,16 +51,16 @@ def execute_die_hard_tool(input_str: str):
     except ValueError as e:
         return f"DEBUG: Error parsing input -> {str(e)}"
 
-# Defining the LangChain Tool with explicit debugging
-die_hard_tool = {
-    'name': 'DieHardSolver',
-    'func': execute_die_hard_tool,
-    'description': 'Solve Die Hard problem given jug sizes and target'
-}
+# Define LangChain Tool
+die_hard_tool = Tool(
+    name="DieHardSolver",
+    func=execute_die_hard_tool,
+    description="Solve Die Hard problem given jug sizes and target"
+)
 
 # Initialize agent with debugging output
 agent = initialize_agent(
-    tools=[die_hard_solver],
+    tools=[die_hard_tool],
     llm=llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True,
@@ -73,8 +71,8 @@ agent = initialize_agent(
 # Execute agent action
 def execute_action(input_str: str):
     print("DEBUG: Executing agent...")
-    response = agent.invoke(input_str)
+    response = agent.invoke({"input": input_str})
     print(f"DEBUG: Agent response -> {response}")
 
 # Example usage:
-execute_die_hard_tool("3 5 4")
+execute_action("Solve the Die Hard problem with jugs 3 and 5 to get 4 liters.")
