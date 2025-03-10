@@ -133,7 +133,7 @@ def reset_problem():
 
 
 def main():
-    model_path = "/root/DieHardSolver/7B/qwen1_5-7b-chat-q2_k.gguf"
+    model_path = "/root/DieHardSolver/qwen2.5-14b-instruct-fp16-00001-of-00008.gguf"
     llm = LlamaCpp(
         model_path=model_path,
         n_ctx=1024,
