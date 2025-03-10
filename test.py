@@ -1,6 +1,14 @@
-from llama_cpp import Llama
+from openai import OpenAI
 
-llm = Llama(model_path="mistral-7b-instruct-v0.1.Q4_K_M.gguf")
+client = OpenAI(
+)
 
-output = llm("What is 2 + 2?", max_tokens=10)
-print(output)
+completion = client.chat.completions.create(
+  model="gpt-4o-mini",
+  store=True,
+  messages=[
+    {"role": "user", "content": "write a haiku about ai"}
+  ]
+)
+
+print(completion.choices[0].message);
