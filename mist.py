@@ -54,75 +54,59 @@ problem = DieHardProblem()
 
 @tool
 def reset_to_initial_state():
-    """Reset the jugs to their initial state (both empty)."""
     problem.reset()
     return f"Jugs reset to initial state: {problem.state()}"
 
 
 @tool
 def fill_small_jug():
-    """Fill the 3-gallon jug to capacity."""
     problem.fill_small()
     return f"Filled small jug. Current state: {problem.state()}"
 
 
 @tool
 def fill_big_jug():
-    """Fill the 5-gallon jug to capacity."""
     problem.fill_big()
     return f"Filled big jug. Current state: {problem.state()}"
 
 
 @tool
 def empty_small_jug():
-    """Empty the 3-gallon jug."""
     problem.empty_small()
     return f"Emptied small jug. Current state: {problem.state()}"
 
 
 @tool
 def empty_big_jug():
-    """Empty the 5-gallon jug."""
     problem.empty_big()
     return f"Emptied big jug. Current state: {problem.state()}"
 
 
 @tool
 def pour_small_into_big_jug():
-    """Pour water from the 3-gallon jug into the 5-gallon jug."""
     problem.pour_small_into_big()
     return f"Poured small into big. Current state: {problem.state()}"
 
 
 @tool
 def pour_big_into_small_jug():
-    """Pour water from the 5-gallon jug into the 3-gallon jug."""
     problem.pour_big_into_small()
     return f"Poured big into small. Current state: {problem.state()}"
 
 
 @tool
 def get_state():
-    """Return the current state of the jugs."""
     return f"Current state: {problem.state()}"
 
 
 @tool
 def reset_problem():
-    """Reset the problem to its initial state (both jugs empty)."""
     global problem
     problem = DieHardProblem()
     return f"Problem reset. Current state: {problem.state()}"
 
 
 def main():
-    models = [
-        # "deepseek-r1:8b",
-        # "qwen2.5:7b",
-        "qwen2.5-coder:14b",
-        # "mistral"
-    ]
-
     model_path = "/root/DieHardSolver/7B/qwen1_5-7b-chat-q2_k.gguf"
     llm = LlamaCpp(
         model_path=model_path,
@@ -148,32 +132,50 @@ def main():
         tools,
         llm,
         agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
-        verbose=True,
+        verbose=False,
         handle_parsing_errors=True,
         return_intermediate_steps=True,
     )
 
-    prompt = (
-        "You are given a Die Hard water jug problem with two jugs: one of capacity 3 gallons and one of 5 gallons. "
-        "You have access to the following tools: fill_small_jug, fill_big_jug, empty_small_jug, empty_big_jug, pour_small_into_big_jug, "
-        "pour_big_into_small_jug, get_state, and reset_problem. Your goal is to get exactly 4 gallons in the 5-gallon jug. "
-        "Using the available tools, provide the sequence of operations to solve the problem. "
-        "Your first step should always be to set the self.small = 0 self.big = 0 via using reset_problem tool. you can only use the "
-        "reset_problem tool once as a first step."
-    )
+    prompt = """"You are given a puzzle called the Die Hard water jug problem. You have two jugs: a 3-gallon jug (small) and a 5-gallon jug (big). The goal is to obtain exactly 4 gallons in the 5-gallon jug using the following tools:
+
+- fill_small_jug – Fills the small jug to its 3-gallon capacity.
+- fill_big_jug – Fills the big jug to its 5-gallon capacity.
+- empty_small_jug – Empties the small jug.
+- empty_big_jug – Empties the big jug.
+- pour_small_into_big_jug – Pours water from the small jug into the big jug until the big jug is full or the small jug is empty.
+- pour_big_into_small_jug – Pours water from the big jug into the small jug until the small jug is full or the big jug is empty.
+- get_state – Returns the current state of both jugs.
+- reset_problem – Resets both jugs to 0 gallons.
+
+**Instructions:**
+- Your goal is to fill the 5-gallon jug with exactly 4 gallons of water.
+- You may use the tools in any order, but **your first step should always be to reset both jugs to 0 gallons** by using the reset_problem tool. You can only use this tool once at the beginning.
+- Provide the sequence of operations needed to achieve the goal. Each operation must be clearly defined and must lead toward reaching exactly 4 gallons in the 5-gallon jug.
+
+Make sure to plan your steps carefully, and use the tools strategically to reach the goal in the fewest moves possible."
+"""
 
     depth = "Keep in mind the depth, the depth is the number of steps to reach the goal. For now try to get exactly 4 gallons in the 5-gallon jug with depth of {a} max."
     depth_value = depth.format(a=7)
 
     prompt += depth_value
-    while True:
+
+    max_steps = 30  # Limit the maximum number of iterations
+    steps_taken = 0
+
+    while steps_taken < max_steps:
         response = agent.invoke(prompt)
 
         if problem.state()[1] == 4:
             for index, action in enumerate(response["intermediate_steps"]):
                 index += 1
                 print(f"{index}.{action[0].tool}")
+            break
 
+        steps_taken += 1
+        if steps_taken == max_steps:
+            print("Maximum steps reached, could not solve the problem.")
             break
 
 
