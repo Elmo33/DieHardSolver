@@ -1,8 +1,9 @@
 from langchain_community.llms import LlamaCpp
-from langchain.tools import Tool
+from langchain.tools import StructuredTool
 from langchain.agents import initialize_agent, AgentType
 from langchain.memory import ConversationBufferMemory
 from collections import deque
+from typing import Dict
 
 # Define model path
 model_path = "/root/DieHardSolver/7B/qwen1_5-7b-chat-q2_k.gguf"
@@ -48,23 +49,18 @@ def die_hard_solver(jug1: int, jug2: int, target: int):
 
     return "No solution found"
 
-# Create a properly formatted tool
-def solve_die_hard(input_dict: dict):
-    """Parses structured input and calls die_hard_solver."""
-    try:
-        print(f"DEBUG: Received input: {input_dict}")  # Debugging output
-        jug1 = int(input_dict.get("jug1"))
-        jug2 = int(input_dict.get("jug2"))
-        target = int(input_dict.get("target"))
-        result = die_hard_solver(jug1, jug2, target)
-        return f"Solution steps: {result}" if isinstance(result, list) else result
-    except Exception as e:
-        return f"Error: {str(e)}"
+# Properly structured tool function
+def solve_die_hard(jug1: int, jug2: int, target: int) -> str:
+    """Solves the Die Hard problem with structured inputs."""
+    print(f"DEBUG: Received input -> jug1: {jug1}, jug2: {jug2}, target: {target}")  # Debugging
+    result = die_hard_solver(jug1, jug2, target)
+    return f"Solution steps: {result}" if isinstance(result, list) else result
 
-die_hard_tool = Tool(
+# Define a properly structured tool
+die_hard_tool = StructuredTool.from_function(
+    solve_die_hard,
     name="DieHardSolver",
-    func=solve_die_hard,
-    description="Solves the Die Hard problem given two jug sizes and a target amount. Input format: {'jug1': 3, 'jug2': 5, 'target': 4}",
+    description="Solves the Die Hard problem given two jug sizes and a target amount.",
 )
 
 # Initialize agent with memory
@@ -76,8 +72,13 @@ agent = initialize_agent(
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True,
     memory=memory,
+    handle_parsing_errors=True,  # Avoid crashing due to format issues
 )
 
-# Example query using `invoke()` instead of `run()`
-response = agent.invoke("Solve the Die Hard problem with jugs 3 and 5 to get 4 liters.")
+# Run the agent using structured input
+response = agent.invoke(
+    {
+        "input": "Solve the Die Hard problem with jugs 3 and 5 to get 4 liters."
+    }
+)
 print(response)
