@@ -4,7 +4,7 @@ from langchain.agents import initialize_agent
 from langchain.agents import AgentType
 from langchain.memory import ConversationBufferMemory
 
-model_path = "/root/DieHardSolver/qwen2.5-14b-instruct-fp16.gguf"
+model_path = "qwen2.5-14b-instruct-fp16-00001-of-00008.gguf"
 
 
 # Load the Llama model using LangChain's LlamaCpp wrapper
