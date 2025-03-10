@@ -54,53 +54,80 @@ problem = DieHardProblem()
 
 @tool
 def reset_to_initial_state():
+    """
+    Resets both jugs (small and big) to 0 gallons.
+    """
     problem.reset()
     return f"Jugs reset to initial state: {problem.state()}"
 
 
 @tool
 def fill_small_jug():
+    """
+    Fills the small jug (3 gallons) to its full capacity.
+    """
     problem.fill_small()
     return f"Filled small jug. Current state: {problem.state()}"
 
 
 @tool
 def fill_big_jug():
+    """
+    Fills the big jug (5 gallons) to its full capacity.
+    """
     problem.fill_big()
     return f"Filled big jug. Current state: {problem.state()}"
 
 
 @tool
 def empty_small_jug():
+    """
+    Empties the small jug (3 gallons).
+    """
     problem.empty_small()
     return f"Emptied small jug. Current state: {problem.state()}"
 
 
 @tool
 def empty_big_jug():
+    """
+    Empties the big jug (5 gallons).
+    """
     problem.empty_big()
     return f"Emptied big jug. Current state: {problem.state()}"
 
 
 @tool
 def pour_small_into_big_jug():
+    """
+    Pours water from the small jug into the big jug until the big jug is full or the small jug is empty.
+    """
     problem.pour_small_into_big()
     return f"Poured small into big. Current state: {problem.state()}"
 
 
 @tool
 def pour_big_into_small_jug():
+    """
+    Pours water from the big jug into the small jug until the small jug is full or the big jug is empty.
+    """
     problem.pour_big_into_small()
     return f"Poured big into small. Current state: {problem.state()}"
 
 
 @tool
 def get_state():
+    """
+    Returns the current state of both jugs (small and big).
+    """
     return f"Current state: {problem.state()}"
 
 
 @tool
 def reset_problem():
+    """
+    Resets the DieHardProblem instance and returns the current state.
+    """
     global problem
     problem = DieHardProblem()
     return f"Problem reset. Current state: {problem.state()}"
@@ -137,7 +164,7 @@ def main():
         return_intermediate_steps=True,
     )
 
-    prompt = """"You are given a puzzle called the Die Hard water jug problem. You have two jugs: a 3-gallon jug (small) and a 5-gallon jug (big). The goal is to obtain exactly 4 gallons in the 5-gallon jug using the following tools:
+    prompt = """You are given a puzzle called the Die Hard water jug problem. You have two jugs: a 3-gallon jug (small) and a 5-gallon jug (big). The goal is to obtain exactly 4 gallons in the 5-gallon jug using the following tools:
 
 - fill_small_jug – Fills the small jug to its 3-gallon capacity.
 - fill_big_jug – Fills the big jug to its 5-gallon capacity.
