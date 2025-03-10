@@ -1,87 +1,181 @@
-from llama_cpp import Llama
-import json
-from main import WaterJugSolver
-import re
+import time
 
-# Load LLM with optimized settings for Hetzner CPX51
-llm = Llama.from_pretrained(
-    repo_id="Qwen/Qwen1.5-7B-Chat-GGUF",
-    filename="qwen1_5-7b-chat-q2_k.gguf",
-    n_ctx=1024,
-    n_threads=16,  # Utilize all CPU cores
-    n_batch=512,
-    use_mlock=True,
-    use_mmap=True,
-)
+from langchain_community.llms.llamacpp import LlamaCpp
+from langchain_ollama import OllamaLLM
+from langchain.agents import initialize_agent, AgentType
+from langchain.tools import tool
 
-# Tool definitions (Actions)
-tools = {
-    "fill_jug_A": lambda s, ca, cb: (ca, s[1]),
-    "fill_jug_B": lambda s, ca, cb: (s[0], cb),
-    "empty_jug_A": lambda s, ca, cb: (0, s[1]),
-    "empty_jug_B": lambda s, ca, cb: (s[0], 0),
-    "transfer_A_to_B": lambda s, ca, cb: (
-        s[0] - min(s[0], cb - s[1]), s[1] + min(s[0], cb - s[1])
-    ),
-    "transfer_B_to_A": lambda s, ca, cb: (
-        s[0] + min(s[1], ca - s[0]), s[1] - min(s[1], ca - s[0])
-    ),
-}
 
-# Generate LLM action
-def generate_llm_action(state, ca, cb):
-    prompt = f"""
-You are solving the water jug problem.
+class DieHardProblem:
+    def __init__(self):
+        self.small = 0  # 3-gallon jug
+        self.big = 0  # 5-gallon jug
 
-Current state:
-- Jug A: {state[0]} liters
-- Jug B: {state[1]} liters
-Capacities: A={ca}, B={cb}
-Goal: Exactly 4 liters.
+    def fill_small(self):
+        self.small = 3
 
-Choose ONLY one action from the following:
-- fill_jug_A
-- fill_jug_B
-- empty_jug_A
-- empty_jug_B
-- transfer_A_to_B
-- transfer_B_to_A
+    def fill_big(self):
+        self.big = 5
 
-Return only the action name without explanation.
-"""
+    def empty_small(self):
+        self.small = 0
 
-    max_retries = 5  # Limit retries to prevent infinite loops
-    for attempt in range(max_retries):
-        response = llm(prompt, max_tokens=5, temperature=0.1)
-        text_response = response["choices"][0]["text"].strip()
+    def empty_big(self):
+        self.big = 0
 
-        match = re.fullmatch(r"(fill_jug_A|fill_jug_B|empty_jug_A|empty_jug_B|transfer_A_to_B|transfer_B_to_A)", text_response)
-        if match:
-            return match.group(1)
-        else:
-            print(f"Unexpected response '{text_response}', retrying...")
+    def pour_small_into_big(self):
+        old_big = self.big
+        self.big = min(5, self.big + self.small)
+        self.small = self.small - (self.big - old_big)
 
-    raise RuntimeError("LLM failed to produce a valid action after multiple attempts.")
+    def pour_big_into_small(self):
+        old_small = self.small
+        self.small = min(3, self.small + self.big)
+        self.big = self.big - (self.small - old_small)
 
-# Solve water jug problem
-def solve_with_llm(ca, cb, target):
-    solver = WaterJugSolver(ca, cb, target)
-    state = (0, 0)
+    def physics_of_jugs(self):
+        assert 0 <= self.small <= 3, "Small jug out of bounds"
+        assert 0 <= self.big <= 5, "Big jug out of bounds"
 
-    for step in range(400):
-        action = generate_llm_action(state, ca, cb)
-        print(f"Step {step + 1}: LLM chose '{action}', State: {state}")
+    def die_hard_problem_not_solved(self):
+        # This assertion is meant to be violated when the puzzle is solved (i.e. when big == 4)
+        assert self.big != 4, f"Puzzle solved: big jug contains {self.big} gallons"
 
-        state = tools[action](state, ca, cb)
+    def reset(self):
+        self.small = 0
+        self.big = 0
 
-        if state[0] == target or state[1] == target:
-            print(f"Target achieved at step {step + 1}! Final state: {state}")
-            return
+    def state(self):
+        return (self.small, self.big)
 
-    print("Could not achieve target within step limit.")
 
-# Run solver
-solve_with = lambda ca, cb, target: solve_with_llm(ca, cb, target)
+problem = DieHardProblem()
 
-# Example call
-solve_with_llm(3, 5, 4)
+
+@tool
+def reset_to_initial_state():
+    """Reset the jugs to their initial state (both empty)."""
+    problem.reset()
+    return f"Jugs reset to initial state: {problem.state()}"
+
+
+@tool
+def fill_small_jug():
+    """Fill the 3-gallon jug to capacity."""
+    problem.fill_small()
+    return f"Filled small jug. Current state: {problem.state()}"
+
+
+@tool
+def fill_big_jug():
+    """Fill the 5-gallon jug to capacity."""
+    problem.fill_big()
+    return f"Filled big jug. Current state: {problem.state()}"
+
+
+@tool
+def empty_small_jug():
+    """Empty the 3-gallon jug."""
+    problem.empty_small()
+    return f"Emptied small jug. Current state: {problem.state()}"
+
+
+@tool
+def empty_big_jug():
+    """Empty the 5-gallon jug."""
+    problem.empty_big()
+    return f"Emptied big jug. Current state: {problem.state()}"
+
+
+@tool
+def pour_small_into_big_jug():
+    """Pour water from the 3-gallon jug into the 5-gallon jug."""
+    problem.pour_small_into_big()
+    return f"Poured small into big. Current state: {problem.state()}"
+
+
+@tool
+def pour_big_into_small_jug():
+    """Pour water from the 5-gallon jug into the 3-gallon jug."""
+    problem.pour_big_into_small()
+    return f"Poured big into small. Current state: {problem.state()}"
+
+
+@tool
+def get_state():
+    """Return the current state of the jugs."""
+    return f"Current state: {problem.state()}"
+
+
+@tool
+def reset_problem():
+    """Reset the problem to its initial state (both jugs empty)."""
+    global problem
+    problem = DieHardProblem()
+    return f"Problem reset. Current state: {problem.state()}"
+
+
+def main():
+    models = [
+        # "deepseek-r1:8b",
+        # "qwen2.5:7b",
+        "qwen2.5-coder:14b",
+        # "mistral"
+    ]
+
+    model_path = "/root/DieHardSolver/7B/qwen1_5-7b-chat-q2_k.gguf"
+    llm = LlamaCpp(
+        model_path=model_path,
+        n_ctx=1024,
+        n_threads=16,
+        n_batch=256,
+        use_mlock=True,
+        use_mmap=True
+    )
+
+    tools = [
+        fill_small_jug,
+        fill_big_jug,
+        empty_small_jug,
+        empty_big_jug,
+        pour_small_into_big_jug,
+        pour_big_into_small_jug,
+        get_state,
+        reset_problem,
+    ]
+
+    agent = initialize_agent(
+        tools,
+        llm,
+        agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True,
+        handle_parsing_errors=True,
+        return_intermediate_steps=True,
+    )
+
+    prompt = (
+        "You are given a Die Hard water jug problem with two jugs: one of capacity 3 gallons and one of 5 gallons. "
+        "You have access to the following tools: fill_small_jug, fill_big_jug, empty_small_jug, empty_big_jug, pour_small_into_big_jug, "
+        "pour_big_into_small_jug, get_state, and reset_problem. Your goal is to get exactly 4 gallons in the 5-gallon jug. "
+        "Using the available tools, provide the sequence of operations to solve the problem. "
+        "Your first step should always be to set the self.small = 0 self.big = 0 via using reset_problem tool. you can only use the "
+        "reset_problem tool once as a first step."
+    )
+
+    depth = "Keep in mind the depth, the depth is the number of steps to reach the goal. For now try to get exactly 4 gallons in the 5-gallon jug with depth of {a} max."
+    depth_value = depth.format(a=7)
+
+    prompt += depth_value
+    while True:
+        response = agent.invoke(prompt)
+
+        if problem.state()[1] == 4:
+            for index, action in enumerate(response["intermediate_steps"]):
+                index += 1
+                print(f"{index}.{action[0].tool}")
+
+            break
+
+
+if __name__ == "__main__":
+    main()
