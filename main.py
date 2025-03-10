@@ -3,9 +3,9 @@ from langchain.agents import initialize_agent, AgentType
 from langchain.memory import ConversationBufferMemory
 from langchain.tools import Tool
 from collections import deque
-from typing import Tuple, List
+import json
 
-# Corrected model path formatting
+# Model Path
 model_path = "/root/DieHardSolver/7B/qwen1_5-7b-chat-q2_k.gguf"
 
 llm = LlamaCpp(
@@ -49,7 +49,7 @@ def die_hard_solver(jug1: int, jug2: int, target: int):
 def execute_die_hard_tool(input_str: str):
     print(f"DEBUG: Received input -> {input_str}")
     try:
-        input_data = eval(input_str)  # Convert string to dictionary safely
+        input_data = json.loads(input_str)  # Properly parse JSON input
         if not isinstance(input_data, dict) or "jugs" not in input_data or "target" not in input_data:
             raise ValueError("Invalid input format: expected {'jugs': [int, int], 'target': int}")
 
@@ -68,36 +68,15 @@ die_hard_tool = Tool(
     description="Solves the Die Hard problem given two jug sizes and a target amount of water."
 )
 
-# Updated LangChain agent with forced tool usage
+# Updated LangChain agent with correct memory settings
 agent = initialize_agent(
     tools=[die_hard_tool],
     llm=llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True,
-    memory=ConversationBufferMemory(memory_key="chat_history"),
+    memory=ConversationBufferMemory(memory_key="chat_history", return_messages=True),  # Fixed memory
     handle_parsing_errors=True
 )
-
-# Ensure the agent is always directed to use tools
-agent.prompt = """You are an AI assistant that solves the Die Hard water jug problem. You must always use the DieHardSolver tool for calculations.
-
-**Instructions:**
-1. If the user provides jug sizes and a target amount, call `DieHardSolver` with the correct parameters.
-2. If the input is incorrect, provide guidance but **do not** attempt to solve it yourself—always call the tool.
-
-**Example Input:**
-User: "Solve the Die Hard problem with jugs 3 and 5 to get 4 liters."
-Agent Thought: "The user has provided a valid problem statement."
-Action: DieHardSolver
-Action Input: {"jugs": [3, 5], "target": 4}
-
-**Example Incorrect Input Handling:**
-User: "Solve the problem with jugs three and five."
-Agent Thought: "The user provided an unclear request."
-Response: "Please provide numeric jug sizes and target amount in liters."
-
-Now proceed with the request:
-"""
 
 # Execute agent action
 def execute_action(input_str: str):
