@@ -6,11 +6,12 @@ from typing import Optional, ClassVar
 model_path = "/root/DieHardSolver/7B/qwen1_5-7b-chat-q2_k.gguf"
 llm_qwen = LlamaCpp(
     model_path=model_path,
-    n_ctx=1024,
-    n_threads=16,
+    n_ctx=32768,       # Use the full training context length instead of 1024
+    n_threads=32,      # Increase the number of threads to better utilize your server's CPU cores
     n_batch=256,
     use_mlock=True,
-    use_mmap=True
+    use_mmap=True,
+    max_tokens=100     # Increase max_tokens as needed for your application
 )
 
 class DieHardState:
