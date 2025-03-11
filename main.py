@@ -3,7 +3,7 @@ from langchain.tools import BaseTool
 from typing import Optional, ClassVar
 
 # Initialize the Qwen local AI model
-model_path = "/root/DieHardSolver/qwen2.5-14b-instruct-fp16-00001-of-00008.gguf"
+model_path = "/root/DieHardSolver/7B/qwen1_5-7b-chat-q2_k.gguf"
 llm_qwen = LlamaCpp(
     model_path=model_path,
     n_ctx=1024,
@@ -125,26 +125,28 @@ class DieHardTool(BaseTool):
         valid_actions = self.state.get_valid_actions()
 
         prompt = f"""
-You are solving the "Die Hard" water jug problem. Your goal is to measure exactly 4 liters in the big jug in the least amount of steps.
+        You are solving the "Die Hard" water jug problem. Your goal is to measure exactly 4 liters in the big jug in the least amount of steps.
+        
+        THE MOST IMPORTANT RULE: ONLY REPLY WITH THE ACTION THAT IS DEFINED IN THE RULES BELOW
+        **RULES:**
+        - NEVER repeat a previous state.
+        - Avoid actions that result in no change.
+        - Only select actions from the list below.
+        
+        **Valid Actions Available Now:**
+        {valid_actions}
+        
+        **Current State:**
+        - Small jug: {self.state.small} liters
+        - Big jug: {self.state.big} liters
+        
+        **Previously Visited States:**
+        {list(self.state.history)}
+        
+        Reply with only one of the valid actions above. Do not explain your choice.
+        """
+        print(prompt)
 
-THE MOST IMPORTANT RULE: ONLY REPLY WITH THE ACTION THAT IS DEFINED IN THE RULES BELOW
-**RULES:**
-- NEVER repeat a previous state.
-- Avoid actions that result in no change.
-- Only select actions from the list below.
-
-**Valid Actions Available Now:**
-{valid_actions}
-
-**Current State:**
-- Small jug: {self.state.small} liters
-- Big jug: {self.state.big} liters
-
-**Previously Visited States:**
-{list(self.state.history)}
-
-Reply with only one of the valid actions above. Do not explain your choice.
-"""
         next_action = self.llm.invoke(prompt).strip()
 
         if next_action not in valid_actions:
