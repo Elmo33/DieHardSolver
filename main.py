@@ -2,8 +2,9 @@ from langchain.llms import LlamaCpp
 from langchain.tools import BaseTool
 from typing import Optional, ClassVar
 
+# qwen2.5-14b-instruct-fp16-00001-of-00008.gguf
 # Initialize the Qwen local AI model
-model_path = "/root/DieHardSolver/7B/qwen1_5-7b-chat-q2_k.gguf"
+model_path = "/root/DieHardSolver/qwen2.5-14b-instruct-fp16-00001-of-00008.gguf"
 llm_qwen = LlamaCpp(
     model_path=model_path,
     n_ctx=32768,       # Use the full training context length instead of 1024
