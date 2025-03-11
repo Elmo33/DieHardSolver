@@ -1,87 +1,80 @@
-from langchain.tools import Tool
-from langchain.agents import initialize_agent, AgentType
+from langchain.tools import BaseTool
 from langchain_openai import OpenAI
+from typing import Optional, Type
 
-import logging
+class DieHardState:
+    def __init__(self):
+        self.small = 0  # 3-liter jug
+        self.big = 0  # 5-liter jug
 
-logging.basicConfig(level=logging.DEBUG, format='%(message)s')
-logger = logging.getLogger("DieHardSolver")
+    def fill_small(self):
+        print("Filling small jug")
+        self.small = 3
+
+    def fill_big(self):
+        print("Filling big jug")
+        self.big = 5
+
+    def empty_small(self):
+        print("Emptying small jug")
+        self.small = 0
+
+    def empty_big(self):
+        print("Emptying big jug")
+        self.big = 0
+
+    def pour_small_into_big(self):
+        print("Pouring small jug into big jug")
+        old_big = self.big
+        self.big = min(5, self.big + self.small)
+        self.small -= (self.big - old_big)
+
+    def pour_big_into_small(self):
+        print("Pouring big jug into small jug")
+        old_small = self.small
+        self.small = min(3, self.small + self.big)
+        self.big -= (self.small - old_small)
+
+    def check_invariants(self):
+        print("Checking invariants")
+        assert 0 <= self.small <= 3, "Small jug out of bounds!"
+        assert 0 <= self.big <= 5, "Big jug out of bounds!"
+        return self.big != 4  # Problem solved if big jug has 4 liters
 
 
-class JugTool:
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self.current = 0
+class DieHardTool(BaseTool):
+    name: str = "die_hard_solver"  # Add explicit type annotation
+    description: str = "A tool to manipulate water in two jugs to solve the Die Hard problem."
+    state: DieHardState = DieHardState()  # Define the state properly
 
-    def fill(self):
-        logger.debug(f"Filling {self.capacity}-gallon jug to full capacity.")
-        self.current = self.capacity
-        return f"Filled {self.capacity}-gallon jug to {self.current} gallons."
+    def _run(self, action: str, query: Optional[str] = None) -> str:
+        actions = {
+            "fill_small": self.state.fill_small,
+            "fill_big": self.state.fill_big,
+            "empty_small": self.state.empty_small,
+            "empty_big": self.state.empty_big,
+            "pour_small_into_big": self.state.pour_small_into_big,
+            "pour_big_into_small": self.state.pour_big_into_small,
+        }
 
-    def empty(self):
-        logger.debug(f"Emptying {self.capacity}-gallon jug.")
-        self.current = 0
-        return f"Emptied {self.capacity}-gallon jug."
+        if action in actions:
+            actions[action]()
+            self.state.check_invariants()
+            return f"Action performed: {action}, New state: small={self.state.small}, big={self.state.big}"
+        return "Invalid action!"
 
-    def transfer_to(self, other):
-        amount = min(self.current, other.capacity - other.current)
-        logger.debug(f"Transferring {amount} gallons from {self.capacity}-gallon jug "
-                     f"to {other.capacity}-gallon jug.")
-        self.current -= amount
-        other.current += amount
-        return (f"Transferred {amount} gallons. Now {self.capacity}-gallon jug has "
-                f"{self.current} gallons, and {other.capacity}-gallon jug has "
-                f"{other.current} gallons.")
+    def _arun(self, action: str, query: Optional[str] = None):
+        raise NotImplementedError("Async execution is not supported.")
 
+# Define LLM and tool
+llm = OpenAI()
+tool = DieHardTool()
 
-# Define the JugTool objects
-five_gallon = JugTool(5)
-three_gallon = JugTool(3)
-
-# Define the tools, ignoring arbitrary arguments
-tools = [
-    Tool(
-        name="Fill 5-gallon Jug",
-        func=lambda *args, **kwargs: five_gallon.fill(),
-        description="Fill the 5-gallon jug completely."
-    ),
-    Tool(
-        name="Fill 3-gallon Jug",
-        func=lambda *args, **kwargs: three_gallon.fill(),
-        description="Fill the 3-gallon jug completely."
-    ),
-    Tool(
-        name="Empty 5-gallon Jug",
-        func=lambda *args, **kwargs: five_gallon.empty(),
-        description="Empty the 5-gallon jug."
-    ),
-    Tool(
-        name="Empty 3-gallon Jug",
-        func=lambda *args, **kwargs: three_gallon.empty(),
-        description="Empty the 3-gallon jug."
-    ),
-    Tool(
-        name="Transfer from 5 to 3",
-        func=lambda *args, **kwargs: five_gallon.transfer_to(three_gallon),
-        description="Pour water from the 5-gallon jug to the 3-gallon jug."
-    ),
-    Tool(
-        name="Transfer from 3 to 5",
-        func=lambda *args, **kwargs: three_gallon.transfer_to(five_gallon),
-        description="Pour water from the 3-gallon jug to the 5-gallon jug."
-    ),
+# Example usage: Executing actions to solve the problem
+sequence = [
+    "fill_big", "pour_big_into_small", "empty_small",
+    "pour_big_into_small", "fill_big", "pour_big_into_small"
 ]
 
-llm = OpenAI(temperature=0)
-agent = initialize_agent(tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, verbose=False)
-
-
-def main():
-    prompt = "We have a 5-gallon jug and a 3-gallon jug. Please measure exactly 4 gallons in the 5-gallon jug."
-    response = agent.run(prompt)
-    print("\nAgent’s final answer:\n", response)
-    print(type(response))
-
-
-if __name__ == "__main__":
-    main()
+for action in sequence:
+    print(tool.run(action))
