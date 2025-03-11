@@ -7,7 +7,7 @@ from typing import Optional, ClassVar
 model_path = "/root/DieHardSolver/qwen2.5-14b-instruct-fp16-00001-of-00008.gguf"
 llm_qwen = LlamaCpp(
     model_path=model_path,
-    n_ctx=32768,       # Use the full training context length instead of 1024
+    n_ctx=131072,       # Use the full training context length instead of 1024
     n_threads=32,      # Increase the number of threads to better utilize your server's CPU cores
     n_batch=256,
     use_mlock=True,
@@ -148,7 +148,7 @@ class DieHardTool(BaseTool):
         Reply with only one of the valid actions above. Do not explain your choice.
         
         REPLY WITH ONLY THE ACTION NAME, FOR EXAMPLE fill_small or pour_big_into_small etc.
-         Do not explain anything, do now add anything to the action names.
+         Do not explain anything, do not add anything to the action names.
         """
 
         next_action = self.llm.invoke(prompt).strip()
