@@ -122,7 +122,7 @@ class DieHardTool(BaseTool):
                 return f"Action performed: {action}, New state: small={self.state.small}, big={self.state.big}"
             return "Invalid action!"
 
-        valid_actions = self.state.get_valid_actions()
+        valid_actions = "\n".join(self.state.get_valid_actions())
 
         prompt = f"""
         You are solving the "Die Hard" water jug problem. Your goal is to measure exactly 4 liters in the big jug in the least amount of steps.
