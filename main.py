@@ -1,164 +1,110 @@
-from langchain.llms import LlamaCpp
 from langchain.tools import BaseTool
-from typing import Optional, ClassVar
+from typing import Dict, Any
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, ToolMessage
+from typing import NamedTuple
 
-# qwen2.5-14b-instruct-fp16-00001-of-00008.gguf
-# Initialize the Qwen local AI model
-model_path = "/root/DieHardSolver/qwen2.5-14b-instruct-fp16-00001-of-00008.gguf"
-llm_qwen = LlamaCpp(
-    model_path=model_path,
-    n_ctx=13107,       # Use the full training context length instead of 1024
-    n_threads=32,      # Increase the number of threads to better utilize your server's CPU cores
-    n_batch=256,
-    use_mlock=True,
-    use_mmap=True,
-    max_tokens=50     # Increase max_tokens as needed for your application
-)
+goal = 1
 
-class DieHardState:
-    def __init__(self):
-        self.small = 0
-        self.big = 0
-        self.history = {(0, 0)}
+class JugState(NamedTuple):
+    small_jug: int
+    big_jug: int
 
-    def apply_state_change(self, new_small: int, new_big: int, action_name: str) -> bool:
-        new_state = (new_small, new_big)
-        if new_state in self.history:
-            print(f"DEBUG: {action_name} would lead to repeated state: {new_state}. Avoid loops!")
-            return False
-        self.small = new_small
-        self.big = new_big
-        self.history.add(new_state)
-        return True
+    def as_dict(self) -> Dict[str, int]:
+        return {"small_jug": self.small_jug, "big_jug": self.big_jug}
 
-    def fill_small(self):
-        print(f"DEBUG: Filling small jug -> small={self.small}, big={self.big}")
-        if self.small < 3:
-            return self.apply_state_change(3, self.big, "fill_small")
-        return False
+    @staticmethod
+    def from_dict(info: Dict[str, int]) -> 'JugState':
+        return JugState(info.get("small_jug", 0), info.get("big_jug", 0))
 
-    def fill_big(self):
-        print(f"DEBUG: Filling big jug -> small={self.small}, big={self.big}")
-        if self.big < 5:
-            return self.apply_state_change(self.small, 5, "fill_big")
-        return False
 
-    def empty_small(self):
-        print(f"DEBUG: Emptying small jug -> small={self.small}, big={self.big}")
-        if self.small > 0:
-            return self.apply_state_change(0, self.big, "empty_small")
-        return False
+def enforce_constraints(state: JugState) -> JugState:
+    if not (0 <= state.small_jug <= 3 and 0 <= state.big_jug <= 5):
+        raise AssertionError("Invalid state: water level outside permitted limits.")
+    if state.big_jug == goal:
+        raise AssertionError(f"Error: The large jug contains {goal} liters!")
+    return state
 
-    def empty_big(self):
-        print(f"DEBUG: Emptying big jug -> small={self.small}, big={self.big}")
-        if self.big > 0:
-            return self.apply_state_change(self.small, 0, "empty_big")
-        return False
+# Single class that handles all jug operations.
+class WaterJugTool(BaseTool):
+    name: str = "water_jug_tool"
+    description: str = "A tool to manipulate water in two jugs to solve the Die Hard problem."
 
-    def pour_small_into_big(self):
-        print(f"DEBUG: Pouring small into big -> small={self.small}, big={self.big}")
-        if self.small > 0 and self.big < 5:
-            amount = min(self.small, 5 - self.big)
-            return self.apply_state_change(self.small - amount, self.big + amount, "pour_small_into_big")
-        return False
+    def _run(self, input: Dict[str, Any]) -> Dict[str, int]:
+        action = input.get("action")
+        info = input.get("info", {"small_jug": 0, "big_jug": 0})
+        current = JugState.from_dict(info)
 
-    def pour_big_into_small(self):
-        print(f"DEBUG: Pouring big into small -> small={self.small}, big={self.big}")
-        if self.big > 0 and self.small < 3:
-            amount = min(self.big, 3 - self.small)
-            return self.apply_state_change(self.small + amount, self.big - amount, "pour_big_into_small")
-        return False
+        if action == "refill_small":
+            print("DEBUG: Refilling small jug")
+            updated_state = JugState(3, current.big_jug)
+        elif action == "refill_big":
+            print("DEBUG: Refilling big jug")
+            updated_state = JugState(current.small_jug, 5)
+        elif action == "drain_small":
+            print("DEBUG: Draining small jug")
+            updated_state = JugState(0, current.big_jug)
+        elif action == "drain_big":
+            print("DEBUG: Draining big jug")
+            updated_state = JugState(current.small_jug, 0)
+        elif action == "transfer_small_to_big":
+            print("DEBUG: Transferring from small to big jug")
+            room_in_big = 5 - current.big_jug
+            amount = min(current.small_jug, room_in_big)
+            updated_state = JugState(current.small_jug - amount, current.big_jug + amount)
+        elif action == "transfer_big_to_small":
+            print("DEBUG: Transferring from big to small jug")
+            room_in_small = 3 - current.small_jug
+            amount = min(current.big_jug, room_in_small)
+            updated_state = JugState(current.small_jug + amount, current.big_jug - amount)
+        elif action == "fetch_state":
+            updated_state = current
+        else:
+            raise ValueError(f"Unknown action: {action}")
 
-    def check_goal(self):
-        """Returns True if we reached the goal (big jug has 4 liters)."""
-        return self.big == 4
+        return enforce_constraints(updated_state).as_dict()
 
-    def get_valid_actions(self):
-        """Return a list of actions that yield a new state (i.e. valid and not repeated)."""
-        valid = []
-        if self.small < 3 and (3, self.big) not in self.history:
-            valid.append("fill_small")
-        if self.big < 5 and (self.small, 5) not in self.history:
-            valid.append("fill_big")
-        if self.small > 0 and (0, self.big) not in self.history:
-            valid.append("empty_small")
-        if self.big > 0 and (self.small, 0) not in self.history:
-            valid.append("empty_big")
-        if self.small > 0 and self.big < 5:
-            amount = min(self.small, 5 - self.big)
-            new_state = (self.small - amount, self.big + amount)
-            if new_state not in self.history and new_state != (self.small, self.big):
-                valid.append("pour_small_into_big")
-        if self.big > 0 and self.small < 3:
-            amount = min(self.big, 3 - self.small)
-            new_state = (self.small + amount, self.big - amount)
-            if new_state not in self.history and new_state != (self.small, self.big):
-                valid.append("pour_big_into_small")
-        return valid
+    async def _arun(self, input: Dict[str, Any]) -> Dict[str, int]:
+        return self._run(input)
 
-class DieHardTool(BaseTool):
-    name: str = "die_hard_solver"
-    description: str = "A tool to manipulate water in two jugs to solve the Die Hard problem using Qwen local AI."
-    state: DieHardState = DieHardState()
-    # Use the Qwen local AI model we defined above.
-    llm: ClassVar = llm_qwen
+# language_model = ChatOpenAI()
+language_model = ChatOpenAI(model="gpt-4o")
+tool = WaterJugTool()
+model_with_tools = language_model.bind_tools([tool])
 
-    def _run(self, action: Optional[str] = None) -> str:
-        if self.state.check_goal():
-            return f"Goal reached! Final state: small={self.state.small}, big={self.state.big}"
+def instruction() -> str:
+    msg = (
+        "Your challenge is to solve a water jug puzzle by using the available water jug tool. "
+        "Provide an input with an 'action' key (choose one from 'refill_small', 'refill_big', 'drain_small', 'drain_big', "
+        "'transfer_small_to_big', 'transfer_big_to_small', 'fetch_state') and an 'info' key containing the current jug states. "
+        f"Remember the jug constraints: small jug between 0-3 liters, big jug between 0-5 liters, and the big jug must never contain {goal} liters. "
+        f"Continue applying operations until the error ('Error: The large jug contains {goal} liters!') is triggered."
+    )
+    return msg
 
-        actions = {
-            "fill_small": self.state.fill_small,
-            "fill_big": self.state.fill_big,
-            "empty_small": self.state.empty_small,
-            "empty_big": self.state.empty_big,
-            "pour_small_into_big": self.state.pour_small_into_big,
-            "pour_big_into_small": self.state.pour_big_into_small,
-        }
+def execute():
+    conversation = [HumanMessage(instruction())]
+    response = model_with_tools.invoke(conversation)
+    current_state = JugState(0, 0)
 
-        if action:
-            if action in actions:
-                valid = actions[action]()
-                if not valid:
-                    return f"Action '{action}' resulted in no change or would lead to a repeated state. Try something else."
-                return f"Action performed: {action}, New state: small={self.state.small}, big={self.state.big}"
-            return "Invalid action!"
+    while response.tool_calls:
+        conversation.append(response)
+        for call in response.tool_calls:
+            parameters = call["args"]
+            if parameters.get("info") is None:
+                parameters["info"] = {"small_jug": current_state.small_jug, "big_jug": current_state.big_jug}
 
-        valid_actions = "\n".join(self.state.get_valid_actions())
+            try:
+                result = tool._run(parameters)
+                current_state = JugState.from_dict(result)
+            except Exception as err:
+                result = str(err)
 
-        prompt = f"""
-        You are solving the "Die Hard" water jug problem. Your goal is to measure exactly 4 liters in the big jug in the least amount of steps.
-        
-        THE MOST IMPORTANT RULE: ONLY REPLY WITH THE ACTION THAT IS DEFINED IN THE RULES BELOW
-        **RULES:**
-        - NEVER repeat a previous state.
-        - Avoid actions that result in no change.
-        - Only select actions from the list below.
-        
-        **Valid Actions Available Now:**
-{valid_actions}
-        
-        **Current State:**
-        - Small jug: {self.state.small} liters
-        - Big jug: {self.state.big} liters
-        
-        **Previously Visited States:**
-        {list(self.state.history)}
-        
-        Reply with only one of the valid actions above. Do not explain your choice.
-        
-        REPLY WITH ONLY THE ACTION NAME, FOR EXAMPLE fill_small or pour_big_into_small etc.
-         Do not explain anything, do not add anything to the action names.
-        """
+            print(f"Result: {result}")
+            conversation.append(ToolMessage(result, tool_call_id=call["id"]))
+        response = model_with_tools.invoke(conversation)
+    conversation.append(response)
+    print(response)
 
-        next_action = self.llm.invoke(prompt).strip()
+execute()
 
-        if next_action not in valid_actions:
-            return "Invalid action from LLM!"
-        return self._run(next_action)
-
-# Instantiate and run the Die Hard problem solver
-tool = DieHardTool()
-
-while not tool.state.check_goal():
-    print(tool._run())
