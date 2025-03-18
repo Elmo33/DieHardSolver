@@ -1,10 +1,11 @@
 from langchain.tools import BaseTool
-from typing import Dict, Any
+from typing import Dict, Any, Union
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, ToolMessage
 from typing import NamedTuple
 
-goal = 1
+goal = (0, 0)
+
 
 class JugState(NamedTuple):
     small_jug: int
@@ -13,17 +14,28 @@ class JugState(NamedTuple):
     def as_dict(self) -> Dict[str, int]:
         return {"small_jug": self.small_jug, "big_jug": self.big_jug}
 
+    def __str__(self) -> str:
+        return f"({self.small_jug}, {self.big_jug})"
+
     @staticmethod
-    def from_dict(info: Dict[str, int]) -> 'JugState':
-        return JugState(info.get("small_jug", 0), info.get("big_jug", 0))
+    def from_dict(info: Union[Dict[str, int], tuple, list]) -> 'JugState':
+        # Allow info to be provided as a dict or as a tuple/list (small_jug, big_jug)
+        if isinstance(info, dict):
+            return JugState(info.get("small_jug", 0), info.get("big_jug", 0))
+        elif isinstance(info, (tuple, list)) and len(info) == 2:
+            return JugState(info[0], info[1])
+        else:
+            raise ValueError("Unsupported state representation. Use a dict or a tuple/list of two integers.")
 
 
 def enforce_constraints(state: JugState) -> JugState:
     if not (0 <= state.small_jug <= 3 and 0 <= state.big_jug <= 5):
         raise AssertionError("Invalid state: water level outside permitted limits.")
-    if state.big_jug == goal:
-        raise AssertionError(f"Error: The large jug contains {goal} liters!")
+    if (state.small_jug, state.big_jug) == goal:
+        raise AssertionError(f"Error: The jug state {goal} is reached!")
     return state
+
+
 
 # Single class that handles all jug operations.
 class WaterJugTool(BaseTool):
@@ -67,20 +79,24 @@ class WaterJugTool(BaseTool):
     async def _arun(self, input: Dict[str, Any]) -> Dict[str, int]:
         return self._run(input)
 
+
 # language_model = ChatOpenAI()
 language_model = ChatOpenAI(model="gpt-4o")
 tool = WaterJugTool()
 model_with_tools = language_model.bind_tools([tool])
+
 
 def instruction() -> str:
     msg = (
         "Your challenge is to solve a water jug puzzle by using the available water jug tool. "
         "Provide an input with an 'action' key (choose one from 'refill_small', 'refill_big', 'drain_small', 'drain_big', "
         "'transfer_small_to_big', 'transfer_big_to_small', 'fetch_state') and an 'info' key containing the current jug states. "
-        f"Remember the jug constraints: small jug between 0-3 liters, big jug between 0-5 liters, and the big jug must never contain {goal} liters. "
-        f"Continue applying operations until the error ('Error: The large jug contains {goal} liters!') is triggered."
+        f"Remember the jug constraints: small jug between 0-3 liters, big jug between 0-5 liters, and the jug state must never equal {goal}."
+        f"Continue applying operations until the error ('Error: The large jug contains {goal} liters!') is triggered. "
+        "Note: The jug state may be provided as a tuple (small, big) or as a dictionary."
     )
     return msg
+
 
 def execute():
     conversation = [HumanMessage(instruction())]
@@ -106,5 +122,25 @@ def execute():
     conversation.append(response)
     print(response)
 
-execute()
+possible_combinations = [
+    (0, 0),
+    (3, 0),
+    (0, 3),
+    (3, 3),
+    (0, 5),
+    (1, 5),
+    (3, 2),
+    (0, 2),
+    (2, 0),
+    (3, 4),
+    (0, 4),
+    (3, 1),
+    (0, 1)
+]
+
+
+for combination in possible_combinations:
+    goal = combination
+    print(f"Goal: {goal}")
+    execute()
 
